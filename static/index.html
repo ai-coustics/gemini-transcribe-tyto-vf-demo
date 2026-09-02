@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f3f0e8" />
+    <title>Gemini + Quail transcription lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="https://docs.ai-coustics.com/" target="_blank" rel="noopener noreferrer">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M0,50 L50,50 A50,50 0 0 1 100,0 L100,50 A50,50 0 0 1 0,50 Z M70,34 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z" fill="currentColor" fill-rule="evenodd"/></svg></span>
+        <span>ai-coustics</span>
+      </a>
+      <div class="status" id="status"><span class="status-dot"></span><span>Checking systems</span></div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="eyebrow">Gemini 3.5 + Quail Voice Focus 2.2</div>
+        <h1>Cleaner input.<br />Clearer comparison.</h1>
+        <p class="lede">Transcribe one recording twice. Compare Gemini with and without voice isolation.</p>
+      </section>
+
+      <section class="input-card" id="inputCard">
+        <div class="source-picker">
+          <div class="record-zone">
+            <button class="record-button" id="recordButton" type="button" aria-label="Start live comparison">
+              <span class="record-core"></span>
+            </button>
+            <div>
+              <div class="source-label" id="recordLabel">Start live comparison</div>
+              <div class="source-help" id="recordHelp">Transcribe as you speak</div>
+            </div>
+          </div>
+          <div class="or"><span>or</span></div>
+          <label class="upload-zone" for="fileInput" tabindex="0" role="button">
+            <input id="fileInput" type="file" accept="audio/wav,.wav" />
+            <span class="upload-icon">+</span>
+            <span><b>Upload WAV</b><small>PCM, up to 15 minutes</small></span>
+          </label>
+        </div>
+
+        <div class="selected-file hidden" id="selectedFile">
+          <div class="mini-wave" aria-hidden="true"></div>
+          <div><b id="selectedName"></b><span id="selectedMeta"></span></div>
+          <button id="clearFile" type="button">Remove</button>
+        </div>
+
+        <details class="controls">
+          <summary><span>Options</span><span class="summary-hint">Quail, language, diagnostics</span></summary>
+          <div class="control-grid">
+            <label class="range-control">
+              <span>Quail enhancement <output id="levelValue">0.5</output></span>
+              <input id="enhancementLevel" type="range" min="0" max="1" value="0.5" step="0.1" />
+              <span class="range-labels"><i>Preserve</i><i>Suppress</i></span>
+            </label>
+            <label><span>Language codes</span><input id="languages" type="text" placeholder="en-US, de-DE" /></label>
+            <label class="wide"><span>Custom vocabulary</span><input id="vocabulary" type="text" placeholder="Gemini, ai-coustics, product names…" /></label>
+            <label class="wide"><span>Reference transcript, file mode</span><input id="reference" type="text" placeholder="Paste the expected words to calculate WER…" /></label>
+            <label class="check"><input id="diarization" type="checkbox" /><span>Speaker diarization, file only</span></label>
+            <label class="check"><input id="timestamps" type="checkbox" /><span>Word timestamps, file only</span></label>
+            <label class="check"><input id="tyto" type="checkbox" checked /><span>Tyto audio insight</span></label>
+          </div>
+        </details>
+
+        <button class="run-button" id="runButton" type="button" disabled>
+          <span>Compare transcripts</span><span class="arrow">→</span>
+        </button>
+      </section>
+
+      <section class="processing hidden" id="processing">
+        <div class="scanner"></div>
+        <span class="processing-step" id="processingStep">Preparing audio paths...</span>
+        <span class="processing-time" id="processingTime">00:00</span>
+      </section>
+
+      <section class="results hidden" id="results">
+        <div class="results-head">
+          <div><span class="eyebrow" id="resultEyebrow">Result</span><h2 id="resultTitle">Side by side</h2></div>
+          <button class="new-test" id="newTest" type="button">New test</button>
+        </div>
+        <div class="ab-listen">
+          <span>A/B listen</span>
+          <button id="abPlay" type="button">▶ Play</button>
+          <div><button class="active" id="listenRaw" type="button">A · Control</button><button id="listenEnhanced" type="button">B · Quail</button></div>
+          <small>Switch paths without losing your place</small>
+        </div>
+        <div class="comparison">
+          <article class="transcript raw">
+            <header><div><span class="path-number">A</span><h3>Gemini</h3></div><span class="path-tag">Control</span></header>
+            <audio id="rawAudio" controls></audio>
+            <div class="transcript-text" id="rawText"></div>
+            <footer><span id="rawTime">-</span><span id="rawModel">Gemini 3.5 Transcribe</span></footer>
+          </article>
+          <article class="transcript enhanced">
+            <header><div><span class="path-number">B</span><h3>Quail + Gemini</h3></div><span class="path-tag">Voice Focus</span></header>
+            <audio id="enhancedAudio" controls></audio>
+            <div class="transcript-text" id="enhancedText"></div>
+            <footer><span id="enhancedTime">-</span><span id="quailModel">Quail VF 2.2</span></footer>
+          </article>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span id="primaryMetricLabel">Word delta</span><strong id="wordDelta">-</strong><small id="primaryMetricDetail">Quail vs control</small></div>
+          <div class="metric"><span>Transcript agreement</span><strong id="similarity">-</strong><small>descriptive, not accuracy</small></div>
+          <div class="metric"><span>Quail processing</span><strong id="quailTime">-</strong><small id="quailDelay">local CPU</small></div>
+          <div class="metric tyto-metric hidden" id="tytoMetric"><span>Tyto risk</span><strong id="tytoRisk">-</strong><small id="tytoDetail">original signal</small></div>
+        </div>
+      </section>
+
+      <div class="error hidden" id="errorBox"><b>Comparison stopped</b><span id="errorText"></span><button id="dismissError">×</button></div>
+    </main>
+
+    <footer class="page-footer"><span>Local evaluation tool</span><span>Quail VF 2.2-L + Gemini 3.5 Transcribe</span></footer>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

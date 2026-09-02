@@ -1,0 +1,22 @@
+[project]
+name = "gemini-quail-transcription-lab"
+version = "0.1.0"
+description = "Side-by-side Gemini 3.5 Transcribe evaluation with Quail Voice Focus"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "aic-sdk>=3.0.0",
+  "fastapi>=0.116.0",
+  "google-genai>=1.31.0",
+  "numpy>=2.0.0",
+  "python-dotenv>=1.1.0",
+  "python-multipart>=0.0.20",
+  "scipy>=1.15.0",
+  "uvicorn[standard]>=0.35.0",
+]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.28.0", "pytest>=8.4.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
