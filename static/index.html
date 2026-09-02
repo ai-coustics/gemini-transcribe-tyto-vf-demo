@@ -13,7 +13,7 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="https://docs.ai-coustics.com/" target="_blank" rel="noopener noreferrer">
+      <a class="brand" href="https://docs.ai-coustics.com/?utm_source=x&amp;utm_medium=social&amp;utm_campaign=gemini-demo-sept-2" target="_blank" rel="noopener noreferrer">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M0,50 L50,50 A50,50 0 0 1 100,0 L100,50 A50,50 0 0 1 0,50 Z M70,34 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z" fill="currentColor" fill-rule="evenodd"/></svg></span>
         <span>ai-coustics</span>
       </a>
@@ -109,8 +109,22 @@
           <div class="metric"><span id="primaryMetricLabel">Word delta</span><strong id="wordDelta">-</strong><small id="primaryMetricDetail">Quail vs control</small></div>
           <div class="metric"><span>Transcript agreement</span><strong id="similarity">-</strong><small>descriptive, not accuracy</small></div>
           <div class="metric"><span>Quail processing</span><strong id="quailTime">-</strong><small id="quailDelay">local CPU</small></div>
-          <div class="metric tyto-metric hidden" id="tytoMetric"><span>Tyto input risk</span><strong id="tytoRisk">-</strong><small id="tytoDetail">original signal</small></div>
         </div>
+        <section class="tyto hidden" id="tytoPanel">
+          <header>
+            <span>Tyto input analysis</span>
+            <small id="tytoWindows">5-second windows</small>
+          </header>
+          <div class="tyto-body">
+            <div class="tyto-risk">
+              <strong id="tytoRisk">-</strong>
+              <span class="tyto-band" id="tytoBand">-</span>
+              <div class="bar"><i id="tytoRiskBar"></i></div>
+              <small id="tytoDetail">Risk score</small>
+            </div>
+            <div class="tyto-dims" id="tytoDims"></div>
+          </div>
+        </section>
       </section>
 
       <div class="error hidden" id="errorBox"><b>Comparison stopped</b><span id="errorText"></span><button id="dismissError">×</button></div>

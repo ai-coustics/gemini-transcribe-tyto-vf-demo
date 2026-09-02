@@ -5,6 +5,61 @@ let recorder = null;
 let timerHandle = null;
 let activeListenPath = "raw";
 
+// Tyto dimensions, per the ai-coustics docs. speaker_loudness is a level meter,
+// not a degradation score, so it is never coloured as a problem.
+const TYTO_DIMENSIONS = [
+  ["noise", "Noise"],
+  ["interfering_speech", "Interfering speech"],
+  ["speaker_reverb", "Speaker reverb"],
+  ["speaker_loudness", "Speaker loudness"],
+  ["packet_loss", "Packet loss"],
+  ["codec_degradation", "Codec degradation"],
+];
+
+// Documented risk bands: <0.30 good, 0.30-0.50 warn, >0.50 bad.
+function tytoBand(score) {
+  if (score < 0.3) return ["good", "Good", "No meaningful degradation"];
+  if (score <= 0.5) return ["warn", "Warn", "Noticeable degradation; expect elevated error rates"];
+  return ["bad", "Bad", "Severe degradation; downstream failure likely"];
+}
+
+function renderTyto(tyto, windowLabel) {
+  if (!tyto) { $("tytoPanel").classList.add("hidden"); return; }
+  $("tytoPanel").classList.remove("hidden");
+
+  const risk = Number(tyto.risk_score) || 0;
+  const [band, label, reading] = tytoBand(risk);
+  $("tytoRisk").textContent = risk.toFixed(2);
+  $("tytoBand").textContent = label;
+  $("tytoBand").className = `tyto-band ${band}`;
+  $("tytoRiskBar").className = band === "good" ? "" : band;
+  $("tytoRiskBar").style.width = `${Math.min(100, risk * 100)}%`;
+  $("tytoDetail").textContent = `Risk score · ${reading}`;
+  if (windowLabel) $("tytoWindows").textContent = windowLabel;
+
+  $("tytoDims").replaceChildren(...TYTO_DIMENSIONS.map(([key, name]) => {
+    const value = Number(tyto[key]) || 0;
+    const neutral = key === "speaker_loudness";
+    const [dimBand] = tytoBand(value);
+    const row = document.createElement("div");
+    const head = document.createElement("div");
+    head.className = "dim-head";
+    const title = document.createElement("span");
+    title.textContent = neutral ? `${name} · level` : name;
+    const figure = document.createElement("b");
+    figure.textContent = value.toFixed(2);
+    head.append(title, figure);
+    const track = document.createElement("div");
+    track.className = "bar";
+    const fill = document.createElement("i");
+    fill.className = neutral ? "neutral" : (dimBand === "good" ? "" : dimBand);
+    fill.style.width = `${Math.min(100, value * 100)}%`;
+    track.append(fill);
+    row.append(head, track);
+    return row;
+  }));
+}
+
 async function loadStatus() {
   try {
     const state = await fetch("/api/status").then((r) => r.json());
@@ -107,13 +162,7 @@ async function startLiveComparison() {
       else active.interim[message.path] = message.text;
       setLiveText(message.path, active);
     }
-    if (message.type === "tyto") {
-      $("tytoMetric").classList.remove("hidden");
-      $("tytoRisk").textContent = message.risk_score.toFixed(2);
-      const dimensions = ["noise", "interfering_speech", "speaker_reverb", "packet_loss", "codec_degradation"];
-      const cause = dimensions.sort((a, b) => message[b] - message[a])[0];
-      $("tytoDetail").textContent = `highest: ${cause.replaceAll("_", " ")}`;
-    }
+    if (message.type === "tyto") renderTyto(message, `live · ${message.window_seconds}s windows`);
     if (message.type === "tyto_warning") $("tytoDetail").textContent = message.message;
     if (message.type === "warning") showError(message.message);
     if (message.type === "error") { showError(message.message); releaseMicrophone(active); resetLiveUi(); recorder = null; socket.close(); }
@@ -184,7 +233,7 @@ async function runComparison() {
     else { const delta = enhancedWords.length - rawWords.length; $("primaryMetricLabel").textContent = "Word delta"; $("wordDelta").textContent = `${delta > 0 ? "+" : ""}${delta}`; $("primaryMetricDetail").textContent = "Quail vs control"; }
     $("similarity").textContent = maxWords ? `${Math.round(shared / maxWords * 100)}%` : "-";
     $("quailTime").textContent = `${data.quail.processing_ms}ms`; $("quailDelay").textContent = `${data.quail.audio_delay_ms}ms signal delay`;
-    if (data.tyto) { $("tytoMetric").classList.remove("hidden"); $("tytoRisk").textContent = data.tyto.risk_score.toFixed(2); const cause = ["noise","interfering_speech","speaker_reverb","speaker_loudness","packet_loss","codec_degradation"].sort((a,b) => data.tyto[b]-data.tyto[a])[0]; $("tytoDetail").textContent = `highest: ${cause.replaceAll("_"," ")}`; } else $("tytoMetric").classList.add("hidden");
+    renderTyto(data.tyto, data.tyto ? `mean of ${data.tyto.windows} × ${data.tyto.window_seconds}s windows` : "");
     $("results").classList.remove("hidden", "live"); $("rawModel").textContent = "Gemini 3.5 Transcribe"; $("resultEyebrow").textContent = "Result"; $("resultTitle").textContent = "Side by side"; $("results").scrollIntoView({ behavior:"smooth", block:"start" });
   } catch (error) { $("inputCard").classList.remove("hidden"); showError(error.message); }
   finally { clearInterval(clock); $("processing").classList.add("hidden"); }
