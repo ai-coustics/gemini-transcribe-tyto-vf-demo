@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
-import shutil
 import time
 import uuid
 from pathlib import Path
@@ -14,8 +14,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.requests import Request
 
 from app.audio import AudioError, decode_wav, encode_wav
+from app.limits import AudioStore, RateLimiter, client_ip
 from app.services import (
     LiveQuailProcessor,
     LiveTytoAnalyzer,
@@ -29,32 +31,33 @@ from app.services import (
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
-JOBS_DIR = BASE_DIR / "data" / "jobs"
-JOBS_DIR.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD_BYTES = 150 * 1024 * 1024
-RETENTION_SECONDS = 24 * 60 * 60
 comparison_slots = asyncio.Semaphore(2)
 
-
-def _cleanup_old_jobs() -> None:
-    cutoff = time.time() - RETENTION_SECONDS
-    for path in JOBS_DIR.iterdir():
-        if path.is_dir() and path.stat().st_mtime < cutoff:
-            shutil.rmtree(path)
-
-
-_cleanup_old_jobs()
+# Uploaded audio is never written to disk; it lives here only long enough for
+# the browser to play the A/B comparison back.
+audio_store = AudioStore()
+rate_limiter = RateLimiter()
 
 app = FastAPI(title="Gemini × Quail transcription lab")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/audio", StaticFiles(directory=JOBS_DIR), name="audio")
 
 
 @app.get("/")
 def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/audio/{job_id}/{name}")
+def comparison_audio(job_id: str, name: str):
+    data = audio_store.get(job_id, name)
+    if data is None:
+        raise HTTPException(404, "That audio has expired")
+    return Response(data, media_type="audio/wav")
 
 
 @app.get("/favicon.ico")
@@ -204,6 +207,13 @@ async def live_compare(websocket: WebSocket):
     from google.genai import types
 
     await websocket.accept()
+    refused = rate_limiter.check(
+        client_ip(websocket.headers, websocket.client.host if websocket.client else None)
+    )
+    if refused:
+        await websocket.send_json({"type": "error", "message": refused})
+        await websocket.close()
+        return
     processor: LiveQuailProcessor | None = None
     tyto: LiveTytoAnalyzer | None = None
     tyto_task: asyncio.Task | None = None
@@ -361,6 +371,7 @@ async def _read_limited(upload: UploadFile) -> bytes:
 
 @app.post("/api/compare")
 async def compare(
+    request: Request,
     audio_file: UploadFile = File(...),
     enhancement_level: float = Form(0.5),
     language_codes: str = Form(""),
@@ -369,7 +380,9 @@ async def compare(
     word_timestamps: bool = Form(False),
     tyto: bool = Form(False),
 ):
-    _cleanup_old_jobs()
+    refused = rate_limiter.check(client_ip(request.headers, request.client.host if request.client else None))
+    if refused:
+        raise HTTPException(429, refused)
     if not 0 <= enhancement_level <= 1:
         raise HTTPException(400, "Enhancement level must be between 0 and 1")
     try:
@@ -379,20 +392,15 @@ async def compare(
         raise HTTPException(400, str(exc)) from exc
 
     job_id = uuid.uuid4().hex
-    job_dir = JOBS_DIR / job_id
-    job_dir.mkdir()
-    source_path = job_dir / "source.wav"
-    raw_path = job_dir / "original.wav"
-    enhanced_path = job_dir / "quail.wav"
-    source_path.write_bytes(uploaded_bytes)
-    raw_path.write_bytes(encode_wav(raw_audio))
+    raw_wav = encode_wav(raw_audio)
+    del uploaded_bytes
 
     try:
         async with comparison_slots, asyncio.timeout(180):
             enhanced_audio, quail = await asyncio.to_thread(
                 enhance_with_quail, raw_audio, enhancement_level
             )
-            enhanced_path.write_bytes(encode_wav(enhanced_audio))
+            enhanced_wav = encode_wav(enhanced_audio)
 
             args = (
                 _csv(language_codes, 20),
@@ -410,8 +418,7 @@ async def compare(
                 raw_result, enhanced_result = await asyncio.gather(raw_task, enhanced_task)
                 tyto_result = None
     except Exception as exc:
-        error = f"{type(exc).__name__}: {exc}"
-        (job_dir / "error.txt").write_text(error)
+        logger.exception("comparison failed for job %s", job_id)
         if "not configured" in str(exc):
             public_error = str(exc)
         elif isinstance(exc, TimeoutError):
@@ -420,6 +427,7 @@ async def compare(
             public_error = _public_google_error(exc)
         raise HTTPException(502, public_error) from exc
 
+    audio_store.put(job_id, {"original.wav": raw_wav, "quail.wav": enhanced_wav})
     result = {
         "job_id": job_id,
         "duration_seconds": round(raw_audio.duration_seconds, 2),
@@ -428,5 +436,4 @@ async def compare(
         "quail": quail,
         "tyto": tyto_result,
     }
-    (job_dir / "result.json").write_text(json.dumps(result, indent=2))
     return result

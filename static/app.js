@@ -197,6 +197,8 @@ for (const event of ["dragenter","dragover"]) upload.addEventListener(event, (e)
 for (const event of ["dragleave","drop"]) upload.addEventListener(event, (e) => { e.preventDefault(); upload.classList.remove("drag"); });
 upload.addEventListener("drop", (event) => { const file = event.dataTransfer.files[0]; if (file) setFile(file, file.name); });
 upload.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); $("fileInput").click(); } });
+// the whole record zone is clickable, matching the upload label; ignore clicks that already hit the button
+$("recordZone").addEventListener("click", (event) => { if (!event.target.closest("#recordButton") && !$("recordButton").disabled) $("recordButton").click(); });
 $("clearFile").addEventListener("click", clearFile); $("runButton").addEventListener("click", runComparison); $("dismissError").addEventListener("click", () => $("errorBox").classList.add("hidden"));
 $("enhancementLevel").addEventListener("input", (event) => $("levelValue").textContent = event.target.value);
 $("newTest").addEventListener("click", async () => { if (recorder) await stopLiveComparison(); $("results").classList.add("hidden"); $("results").classList.remove("live"); $("resultEyebrow").textContent = "Result"; $("resultTitle").textContent = "Side by side"; $("inputCard").classList.remove("hidden"); $("inputCard").scrollIntoView({behavior:"smooth"}); });

@@ -47,8 +47,8 @@ h1 { margin: 18px 0 22px; font-size: clamp(44px, 7vw, 76px); line-height: 1.02; 
 .or { position: relative; display: grid; place-items: center; color: #8a8d83; font-size: 12px; }
 .or::before { content: ""; width: 1px; position: absolute; inset: 0 auto; background: var(--line); }
 .or span { z-index: 1; padding: 8px 0; background: var(--surface); }
-.upload-zone { cursor: pointer; transition: background .2s ease; }
-.upload-zone:hover, .upload-zone.drag { background: var(--surface-2); }
+.record-zone, .upload-zone { cursor: pointer; transition: background .2s ease; }
+.input-card:not(.live-active) .record-zone:hover, .upload-zone:hover, .upload-zone.drag { background: var(--surface-2); }
 .upload-zone input { display: none; }
 .upload-icon { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid #aaa69a; border-radius: 50%; color: var(--text); font-size: 24px; font-weight: 300; }
 

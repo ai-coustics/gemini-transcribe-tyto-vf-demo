@@ -24,12 +24,12 @@
       <section class="hero">
         <div class="eyebrow">Gemini 3.5 + Quail Voice Focus 2.2</div>
         <h1>Cleaner input.<br />Clearer comparison.</h1>
-        <p class="lede">Transcribe one recording twice. Compare Gemini with and without voice isolation.</p>
+        <p class="lede">Transcribe one recording twice. Compare Gemini with and without voice isolation, while Tyto scores the input audio.</p>
       </section>
 
       <section class="input-card" id="inputCard">
         <div class="source-picker">
-          <div class="record-zone">
+          <div class="record-zone" id="recordZone">
             <button class="record-button" id="recordButton" type="button" aria-label="Start live comparison">
               <span class="record-core"></span>
             </button>
@@ -65,7 +65,7 @@
             <label class="wide"><span>Reference transcript, file mode</span><input id="reference" type="text" placeholder="Paste the expected words to calculate WER…" /></label>
             <label class="check"><input id="diarization" type="checkbox" /><span>Speaker diarization, file only</span></label>
             <label class="check"><input id="timestamps" type="checkbox" /><span>Word timestamps, file only</span></label>
-            <label class="check"><input id="tyto" type="checkbox" checked /><span>Tyto audio insight</span></label>
+            <label class="check"><input id="tyto" type="checkbox" checked /><span>Tyto input analysis</span></label>
           </div>
         </details>
 
@@ -109,14 +109,14 @@
           <div class="metric"><span id="primaryMetricLabel">Word delta</span><strong id="wordDelta">-</strong><small id="primaryMetricDetail">Quail vs control</small></div>
           <div class="metric"><span>Transcript agreement</span><strong id="similarity">-</strong><small>descriptive, not accuracy</small></div>
           <div class="metric"><span>Quail processing</span><strong id="quailTime">-</strong><small id="quailDelay">local CPU</small></div>
-          <div class="metric tyto-metric hidden" id="tytoMetric"><span>Tyto risk</span><strong id="tytoRisk">-</strong><small id="tytoDetail">original signal</small></div>
+          <div class="metric tyto-metric hidden" id="tytoMetric"><span>Tyto input risk</span><strong id="tytoRisk">-</strong><small id="tytoDetail">original signal</small></div>
         </div>
       </section>
 
       <div class="error hidden" id="errorBox"><b>Comparison stopped</b><span id="errorText"></span><button id="dismissError">×</button></div>
     </main>
 
-    <footer class="page-footer"><span>Local evaluation tool</span><span>Quail VF 2.2-L + Gemini 3.5 Transcribe</span></footer>
+    <footer class="page-footer"><span>Speech enhancement A/B demo</span><span>Quail VF 2.2-L + Tyto 1.1-L + Gemini 3.5 Transcribe</span></footer>
     <script src="/static/app.js" defer></script>
   </body>
 </html>
